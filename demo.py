@@ -67,18 +67,25 @@ def generate_sample_data():
     return df
 
 
+def load_or_generate_validated_data(filepath: str = 'sample_data.csv') -> pd.DataFrame:
+    """Load sample data through DataHandler validation."""
+    handler = DataHandler()
+    try:
+        df = handler.load_csv(filepath)
+        print("Loaded existing sample data (validated)")
+    except FileNotFoundError:
+        generate_sample_data()
+        df = handler.load_csv(filepath)
+        print("Generated sample data and validated with DataHandler")
+
+    return df
+
+
 def run_strategy_demo():
     """Run demonstration with different strategies."""
     
-    # Load or generate data
-    try:
-        df = pd.read_csv('sample_data.csv')
-        print("Loaded existing sample data")
-    except FileNotFoundError:
-        df = generate_sample_data()
-    
-    # Convert Date column
-    df['Date'] = pd.to_datetime(df['Date'])
+    # Load or generate data via DataHandler to enforce schema checks.
+    df = load_or_generate_validated_data('sample_data.csv')
     
     print(f"\nData range: {df['Date'].min().date()} to {df['Date'].max().date()}")
     print(f"Data points: {len(df)}")
@@ -93,7 +100,9 @@ def run_strategy_demo():
         commission=commission,
         slippage=0.0005,
         position_sizing='percent',
-        max_position_pct=0.95
+        max_position_pct=0.95,
+        allow_short=False,
+        execution_timing='next_open'
     )
     
     # Run different strategies
@@ -153,9 +162,10 @@ def run_strategy_demo():
 def run_single_strategy_demo():
     """Run a single strategy demo with detailed output."""
     
-    # Generate data
-    df = generate_sample_data()
-    df['Date'] = pd.to_datetime(df['Date'])
+    # Generate then reload via DataHandler for consistent validation.
+    generate_sample_data()
+    handler = DataHandler()
+    df = handler.load_csv('sample_data.csv')
     
     # Create strategy
     strategy = SMACrossover(short_period=20, long_period=50)
@@ -164,7 +174,9 @@ def run_single_strategy_demo():
     backtester = Backtester(
         initial_capital=100000,
         commission=0.001,
-        slippage=0.0005
+        slippage=0.0005,
+        allow_short=False,
+        execution_timing='next_open'
     )
     
     results = backtester.run(df, strategy, verbose=True)
@@ -184,7 +196,7 @@ def run_single_strategy_demo():
         print("\nTRADE LOG (first 10 trades):")
         print(trades.head(10).to_string(index=False))
     
-    print("\n✅ Demo complete! Check the 'reports/' folder for visualizations.")
+    print("\nDemo complete. Check the 'reports/' folder for visualizations.")
 
 
 if __name__ == '__main__':

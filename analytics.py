@@ -138,10 +138,10 @@ class Analytics:
                 'Avg Trade Duration': 0,
             }
         
-        # Filter sell trades (completed trades)
-        sells = trade_log[trade_log['Action'] == 'sell']
+        # Filter closing trades (completed trades)
+        closes = trade_log[trade_log['Action'].isin(['sell', 'cover'])]
         
-        if sells.empty:
+        if closes.empty:
             return {
                 'Win Rate': 0,
                 'Total Wins': 0,
@@ -154,11 +154,11 @@ class Analytics:
                 'Avg Trade Duration': 0,
             }
         
-        wins = sells[sells['PnL'] > 0]
-        losses = sells[sells['PnL'] <= 0]
+        wins = closes[closes['PnL'] > 0]
+        losses = closes[closes['PnL'] <= 0]
         
         stats = {
-            'Win Rate': len(wins) / len(sells) * 100 if len(sells) > 0 else 0,
+            'Win Rate': len(wins) / len(closes) * 100 if len(closes) > 0 else 0,
             'Total Wins': len(wins),
             'Total Losses': len(losses),
             'Avg Win': wins['PnL'].mean() if len(wins) > 0 else 0,
@@ -169,21 +169,21 @@ class Analytics:
         }
         
         # Calculate trade duration
-        buys = trade_log[trade_log['Action'] == 'buy']
-        if not buys.empty and not sells.empty:
-            # Match buys with sells (simple approach - sequential)
-            sells_sorted = sells.sort_values('Date')
-            buys_sorted = buys.sort_values('Date')
+        opens = trade_log[trade_log['Action'].isin(['buy', 'short'])]
+        if not opens.empty and not closes.empty:
+            # Match opens with closes (simple approach - sequential)
+            closes_sorted = closes.sort_values('Date')
+            opens_sorted = opens.sort_values('Date')
             
             durations = []
-            buy_idx = 0
-            for _, sell in sells_sorted.iterrows():
-                if buy_idx < len(buys_sorted):
-                    buy_date = buys_sorted.iloc[buy_idx]['Date']
-                    sell_date = sell['Date']
-                    duration = (sell_date - buy_date).days
+            open_idx = 0
+            for _, close in closes_sorted.iterrows():
+                if open_idx < len(opens_sorted):
+                    open_date = opens_sorted.iloc[open_idx]['Date']
+                    close_date = close['Date']
+                    duration = (close_date - open_date).days
                     durations.append(duration)
-                    buy_idx += 1
+                    open_idx += 1
             
             stats['Avg Trade Duration'] = np.mean(durations) if durations else 0
         else:
@@ -340,14 +340,14 @@ class Analytics:
         if trade_log.empty:
             return None
         
-        sells = trade_log[trade_log['Action'] == 'sell']
-        if sells.empty:
+        closes = trade_log[trade_log['Action'].isin(['sell', 'cover'])]
+        if closes.empty:
             return None
         
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
         
         # Histogram of P&L
-        ax1.hist(sells['PnL'], bins=20, edgecolor='black', alpha=0.7, color='#3498db')
+        ax1.hist(closes['PnL'], bins=20, edgecolor='black', alpha=0.7, color='#3498db')
         ax1.axvline(x=0, color='black', linestyle='-', linewidth=1)
         ax1.set_title('Trade P&L Distribution', fontsize=14, fontweight='bold')
         ax1.set_xlabel('P&L ($)', fontsize=12)
@@ -355,11 +355,11 @@ class Analytics:
         ax1.grid(True, alpha=0.3)
         
         # Cumulative P&L
-        sells_sorted = sells.sort_values('Date')
-        cumulative_pnl = sells_sorted['PnL'].cumsum()
+        closes_sorted = closes.sort_values('Date')
+        cumulative_pnl = closes_sorted['PnL'].cumsum()
         
-        ax2.plot(sells_sorted['Date'], cumulative_pnl, linewidth=2, color='#3498db')
-        ax2.fill_between(sells_sorted['Date'], cumulative_pnl, 0, 
+        ax2.plot(closes_sorted['Date'], cumulative_pnl, linewidth=2, color='#3498db')
+        ax2.fill_between(closes_sorted['Date'], cumulative_pnl, 0, 
                         alpha=0.3, color='#3498db')
         ax2.axhline(y=0, color='black', linestyle='--', linewidth=1)
         ax2.set_title('Cumulative P&L', fontsize=14, fontweight='bold')

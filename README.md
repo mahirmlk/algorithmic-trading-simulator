@@ -15,6 +15,12 @@ pip install numpy pandas matplotlib
 python demo.py
 ```
 
+## Backtest Execution Model
+
+- Signals are generated on bar `t` and executed on bar `t+1` (default: next bar `Open`) to avoid look-ahead bias.
+- Demo data is loaded via `DataHandler` so OHLC columns are normalized and validated before running strategies.
+- Engine supports long trades by default and optional short selling (`allow_short=True`) in `Backtester`.
+
 ## Project Structure
 
 - `data.py` - Data loading and preprocessing
